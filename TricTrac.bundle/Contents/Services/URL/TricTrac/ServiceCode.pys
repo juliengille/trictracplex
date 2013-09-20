@@ -1,0 +1,155 @@
+ICON = 'icon-default.png'
+USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_2) AppleWebKit/534.51.22 (KHTML, like Gecko) Version/5.1.1 Safari/534.51.22'
+
+####################################################################################################
+def NormalizeURL(url):
+
+    return url
+
+####################################################################################################
+def MetadataObjectForURL(url):
+
+    data = HTML.ElementFromURL(url);
+    idAtt = data.xpath("//div[@id='Content_Video']/object/param[@name='flashvars']")
+    Log('ID ?')
+    id=idAtt[0].attrib['value']
+    Log(id)
+    number = Regex('varplaymedia=([0-9]*)&').search(id).group(1)
+    Log('-- number')
+    Log(number)
+
+    Log("Retrieve http://www.trictrac.tv/swf/listelement.php?idfile="+number)
+
+    request = HTTP.Request("http://www.trictrac.tv/swf/listelement.php?idfile="+number)
+    request.load();
+    Log("Request result--")
+    Log(request.content)
+    thumb=data.xpath("//meta[@property='og:image']/@content")[0]
+    Log("Thumb")
+    Log(thumb)
+
+    DESC=Regex("&fichier=(.*)&descriptif=(.*)&titre=(.*)&idcode=")
+    fichier=DESC.search(request.content).group(1)
+    desc=DESC.search(request.content).group(2).replace('+',' ')  
+    titre=DESC.search(request.content).group(3).replace('+',' ')  
+
+    desc=String.Unquote(desc)
+    titre=String.Unquote(titre)
+
+    return VideoClipObject(
+        title = titre,
+        summary = desc,
+        thumb = Resource.ContentsOfURLWithFallback(url=thumb, fallback=ICON)
+    )
+
+
+####################################################################################################
+def MediaObjectsForURL(url):
+
+#    return [
+#        MediaObject(
+#            parts = [PartObject(key = WebVideoURL(url))],
+#            audio_channels = 2
+#        )
+#    ]
+
+    # data = HTML.ElementFromURL(url);
+    # idAtt = data.xpath("//div[@id='Content_Video']/object/param[@name='flashvars']")
+    # Log('ID ?')
+    # id=idAtt[0].attrib['value']
+    # Log(id)
+    # number = Regex('varplaymedia=([0-9]*)&').search(id).group(1)
+    # Log('-- number')
+    # Log(number)
+
+    # Log("Retrieve http://www.trictrac.tv/swf/listelement.php?idfile="+number)
+
+    # request = HTTP.Request("http://www.trictrac.tv/swf/listelement.php?idfile="+number)
+    # request.load();
+    # Log("Request result--")
+    # Log(request.content)
+
+    # DESC=Regex("&fichier=(.*)&descriptif=(.*)&titre=(.*)&idcode=")
+    # fichier=DESC.search(request.content).group(1)
+    # desc=DESC.search(request.content).group(2).replace('+',' ')  
+    # titre=DESC.search(request.content).group(3).replace('+',' ')  
+
+    # desc=String.Unquote(desc)
+    # titre=String.Unquote(desc)
+
+    # Log("[FICHIER] "+fichier)
+    # Log("[DESC] "+desc)
+    # Log("[TITRE] "+titre)
+
+    # Log('Media object for url '+url)
+    return [
+# For test
+#        MediaObject(
+#            parts = [PartObject(key = HTTPLiveStreamURL("http://www.wat.tv/get/iphone/10744519-2.m3u8?min_bitrate=100000&max_bitrate=2000001&token=2f14c8917fea3b3e5cdd21ef8e5c0e0b%2F5227273c"))],
+#            audio_channels = 2,
+#            video_resolution = '320',
+#            optimized_for_streaming = True
+#        ),
+        MediaObject(
+            parts = [PartObject(key = Callback(PlayVideo, url=url,format='hd'))],
+            audio_channels = 2,
+            container = 'flv',
+            video_resolution = '720',
+            video_codec = 'h264',
+            audio_codec = 'aac',
+            optimized_for_streaming = True
+        ),
+        MediaObject(
+            parts = [PartObject(key = Callback(PlayVideo, url=url,format='sd'))],
+            audio_channels = 2,
+            container = 'flv',
+            video_resolution = '360',
+            video_codec = 'h264',
+            audio_codec = 'aac',
+            optimized_for_streaming = True
+        )
+    ]    
+
+@indirect
+def PlayVideo(url,format):
+    Log('play video trictrac')
+
+    data = HTML.ElementFromURL(url);
+    idAtt = data.xpath("//div[@id='Content_Video']/object/param[@name='flashvars']")
+    Log('ID ?')
+    id=idAtt[0].attrib['value']
+    Log(id)
+    number = Regex('varplaymedia=([0-9]*)&').search(id).group(1)
+    Log('-- number')
+    Log(number)
+
+    Log("Retrieve http://www.trictrac.tv/swf/listelement.php?idfile="+number)
+
+    request = HTTP.Request("http://www.trictrac.tv/swf/listelement.php?idfile="+number)
+    request.load();
+    Log("Request result--")
+    Log(request.content)
+
+    DESC=Regex("&fichier=(.*)&descriptif=(.*)&titre=(.*)&idcode=")
+    fichier=DESC.search(request.content).group(1)
+    desc=DESC.search(request.content).group(2).replace('+',' ')  
+    titre=DESC.search(request.content).group(3).replace('+',' ')  
+
+    desc=String.Unquote(desc)
+    titre=String.Unquote(desc)
+
+    Log("[FICHIER] "+fichier)
+    Log("[DESC] "+desc)
+    Log("[TITRE] "+titre)
+
+    Log('Media object for url '+url)
+
+    video_url= "http://src.povcon.net/videos/"
+
+    if format == 'sd':
+        video_url = video_url + 'SD/'
+
+    video_url = video_url+fichier
+    Log('Video URL')
+    Log(video_url)
+    return IndirectResponse(MovieObject, key=video_url)
